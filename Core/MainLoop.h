@@ -9,12 +9,7 @@ public:
     HelloTriangleApplication() = default;
 
     void run();
-    /*
-        int  GetWidth();
-        void SetWidth();
-        int  GetHeight();
-        void SetHeight();
-    */
+
 private:
     void initWindow();
 
