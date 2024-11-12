@@ -48,14 +48,14 @@ void DestroyDebugUtilsMessengerEXT(VkInstance                   instance ,
 
 void HelloTriangleApplication::run()
 {
-    initWindow();
-    initVulkan();
-    mainLoop();
-    cleanup();
+    InitWindow();
+    InitVulkan();
+    MainLoop();
+    CleanUp();
 }
 
 
-void HelloTriangleApplication::initWindow()
+void HelloTriangleApplication::InitWindow()
 {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -70,15 +70,15 @@ void HelloTriangleApplication::initWindow()
     }
 }
 
-void HelloTriangleApplication::initVulkan()
+void HelloTriangleApplication::InitVulkan()
 {
-    createInstance();
-    createDebugMessenger();
-    choosePhysicalDevice();
+    CreateInstance();
+    CreateDebugMessenger();
+    ChoosePhysicalDevice();
     CreateLogicalDevice();
 }
 
-void HelloTriangleApplication::mainLoop()
+void HelloTriangleApplication::MainLoop()
 {
     while (!glfwWindowShouldClose(window))
     {
@@ -86,7 +86,7 @@ void HelloTriangleApplication::mainLoop()
     }
 }
 
-void HelloTriangleApplication::cleanup()
+void HelloTriangleApplication::CleanUp()
 {
     if (enableValidationLayers)
     {
@@ -94,13 +94,14 @@ void HelloTriangleApplication::cleanup()
     }
 
     vkDestroyInstance(m_Instance, nullptr);
+    vkDestroyDevice(m_Device, nullptr);
     glfwDestroyWindow(window);
     glfwTerminate();
 }
 
-void HelloTriangleApplication::createInstance()
+void HelloTriangleApplication::CreateInstance()
 {
-    if (enableValidationLayers && !checkValidationLayerSupport())
+    if (enableValidationLayers && !CheckValidationLayerSupport())
     {
         throw std::runtime_error("使用了不被支持的校验层");
     }
@@ -108,13 +109,13 @@ void HelloTriangleApplication::createInstance()
     //这个结构体不是必须的，但是它可以帮助驱动程序优化应用程序。
     //比如，应用程序使用了某个引擎，驱动程序对这个引擎有一些特殊处理，这时就可能有很大的优化提升
     VkApplicationInfo appInfo = {};
-    handleAppInfo(appInfo);
+    HandleAppInfo(appInfo);
 
     //创建信息
     //这个结构体是创建一个Vulkan实例时必须填写的信息。
     //它告诉Vulkan的驱动程序需要使用的全局扩展和校验层。全局是指这里的设置对于整个应用程序都有效，而不仅仅对一个设备有效。
     VkInstanceCreateInfo createInfo = {};
-    handleCreateInfo(appInfo, createInfo);
+    HandleCreateInfo(appInfo, createInfo);
 
     //创建实例
     VkResult result = vkCreateInstance(&createInfo, nullptr, &m_Instance);
@@ -124,7 +125,7 @@ void HelloTriangleApplication::createInstance()
     }
 }
 
-void HelloTriangleApplication::handleAppInfo(VkApplicationInfo& appInfo)
+void HelloTriangleApplication::HandleAppInfo(VkApplicationInfo& appInfo)
 {
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pApplicationName = "Hello Triangle";
@@ -134,13 +135,13 @@ void HelloTriangleApplication::handleAppInfo(VkApplicationInfo& appInfo)
     appInfo.apiVersion = VK_API_VERSION_1_0;
 }
 
-void HelloTriangleApplication::handleCreateInfo(const VkApplicationInfo& appInfo , VkInstanceCreateInfo& createInfo)
+void HelloTriangleApplication::HandleCreateInfo(const VkApplicationInfo& appInfo , VkInstanceCreateInfo& createInfo)
 {
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
 
     //将所需的拓展封装进getRequiredExtensions
-    auto glfwExtensions = getRequiredExtensions();
+    auto glfwExtensions = GetRequiredExtensions();
     createInfo.enabledExtensionCount = static_cast<uint32_t>(glfwExtensions.size());
     createInfo.ppEnabledExtensionNames = glfwExtensions.data();
 
@@ -151,7 +152,7 @@ void HelloTriangleApplication::handleCreateInfo(const VkApplicationInfo& appInfo
         createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
         createInfo.ppEnabledLayerNames = validationLayers.data();
 
-        handleCreateInfo_DebugMessager(debugCreateInfo);
+        HandleCreateInfo_DebugMessager(debugCreateInfo);
         createInfo.pNext = &debugCreateInfo;
     }
     else
@@ -181,7 +182,7 @@ void HelloTriangleApplication::GetExtensionInfo()
     }
 }
 
-bool HelloTriangleApplication::checkValidationLayerSupport()
+bool HelloTriangleApplication::CheckValidationLayerSupport()
 {
     uint32_t layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
@@ -209,7 +210,7 @@ bool HelloTriangleApplication::checkValidationLayerSupport()
     return true;
 }
 
-std::vector<const char*> HelloTriangleApplication::getRequiredExtensions()
+std::vector<const char*> HelloTriangleApplication::GetRequiredExtensions()
 {
     //Vulkan是平台无关的API，所以需要一个和窗口系统交互的扩展。
     //我们通过GLFW库里的glfwGetRequiredInstanceExtensions返回Vulkan所需的扩展。
@@ -230,7 +231,7 @@ std::vector<const char*> HelloTriangleApplication::getRequiredExtensions()
     return extensions;
 }
 
-void HelloTriangleApplication::handleCreateInfo_DebugMessager(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
+void HelloTriangleApplication::HandleCreateInfo_DebugMessager(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
 {
     createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
@@ -239,16 +240,16 @@ void HelloTriangleApplication::handleCreateInfo_DebugMessager(VkDebugUtilsMessen
     createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    createInfo.pfnUserCallback = debugCallback;
+    createInfo.pfnUserCallback = DebugCallback;
     createInfo.pUserData = nullptr;
 }
 
-void HelloTriangleApplication::createDebugMessenger()
+void HelloTriangleApplication::CreateDebugMessenger()
 {
     if (!enableValidationLayers) return;
 
     VkDebugUtilsMessengerCreateInfoEXT createInfo = {};
-    handleCreateInfo_DebugMessager(createInfo);
+    HandleCreateInfo_DebugMessager(createInfo);
 
     CreateDebugUtilsMessengerEXT(m_Instance, &createInfo, nullptr, &m_Messenger);
 }
@@ -295,7 +296,7 @@ void HelloTriangleApplication::createDebugMessenger()
  * 最后一个参数pUserData是一个指向用户自定义数据的指针，它是可选的，
  * 这个指针所指的地址会被作为回调函数的参数，用来向回调函数传递用户数据。
  */
-VKAPI_ATTR VkBool32 VKAPI_CALL HelloTriangleApplication::debugCallback
+VKAPI_ATTR VkBool32 VKAPI_CALL HelloTriangleApplication::DebugCallback
 (
     VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity ,
     VkDebugUtilsMessageTypeFlagsEXT             messageType ,
@@ -307,7 +308,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL HelloTriangleApplication::debugCallback
     return VK_FALSE;
 }
 
-void HelloTriangleApplication::choosePhysicalDevice()
+void HelloTriangleApplication::ChoosePhysicalDevice()
 {
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(m_Instance, &deviceCount, nullptr);
@@ -406,8 +407,57 @@ bool HelloTriangleApplication::CheckQueueFamilies(VkPhysicalDevice device)
     return index != -1;
 }
 
+
 void HelloTriangleApplication::CreateLogicalDevice()
 {
-    int queueFamilyIndex = FindQueueFamilies(m_PhysicalDevice, VK_QUEUE_GRAPHICS_BIT);
-    
+    //创建逻辑设备需要先创建队列
+    VkDeviceQueueCreateInfo queueCreateInfo = {};
+    float                   queuePriority = 1.0f;
+    int                     queueFamilyIndex = FindQueueFamilies(m_PhysicalDevice, VK_QUEUE_GRAPHICS_BIT);
+    HandleCreateInfo_DeviceQueue(queueCreateInfo, queuePriority, queueFamilyIndex);
+
+    //设备特性
+    VkPhysicalDeviceFeatures deviceFeatures = {};
+
+    //创建逻辑设备
+    VkDeviceCreateInfo createInfo = {};
+    HandleCreateInfo_Device(queueCreateInfo, deviceFeatures, createInfo);
+
+    if (vkCreateDevice(m_PhysicalDevice, &createInfo, nullptr, &m_Device) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to create logical device!");
+    }
+
+    vkGetDeviceQueue(m_Device, queueFamilyIndex, 0, &m_GraphicsQueue);
+}
+
+void HelloTriangleApplication::HandleCreateInfo_DeviceQueue(VkDeviceQueueCreateInfo& queueCreateInfo ,
+                                                            const float& queuePriority , int queueFamilyIndex)
+{
+    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    queueCreateInfo.queueFamilyIndex = queueFamilyIndex;
+    queueCreateInfo.queueCount = 1;
+    queueCreateInfo.pQueuePriorities = &queuePriority;
+}
+
+void HelloTriangleApplication::HandleCreateInfo_Device(VkDeviceQueueCreateInfo   queueCreateInfo ,
+                                                       VkPhysicalDeviceFeatures& deviceFeatures ,
+                                                       VkDeviceCreateInfo&       createInfo)
+{
+    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    createInfo.pQueueCreateInfos = &queueCreateInfo;
+    createInfo.queueCreateInfoCount = 1;
+    createInfo.pEnabledFeatures = &deviceFeatures;
+    createInfo.enabledExtensionCount = 0;
+
+    //让设备和实例使用相同的校验层
+    if (enableValidationLayers)
+    {
+        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+        createInfo.ppEnabledLayerNames = validationLayers.data();
+    }
+    else
+    {
+        createInfo.enabledLayerCount = 0;
+    }
 }
