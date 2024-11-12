@@ -74,6 +74,8 @@ void HelloTriangleApplication::initVulkan()
 {
     createInstance();
     createDebugMessenger();
+    choosePhysicalDevice();
+    CreateLogicalDevice();
 }
 
 void HelloTriangleApplication::mainLoop()
@@ -303,4 +305,109 @@ VKAPI_ATTR VkBool32 VKAPI_CALL HelloTriangleApplication::debugCallback
 {
     std::cerr << "validation layer: " << pCallbackData->pMessage << '\n';
     return VK_FALSE;
+}
+
+void HelloTriangleApplication::choosePhysicalDevice()
+{
+    uint32_t deviceCount = 0;
+    vkEnumeratePhysicalDevices(m_Instance, &deviceCount, nullptr);
+    if (deviceCount == 0)
+    {
+        throw std::runtime_error("failed to find GPUs with Vulkan support!");
+    }
+
+    std::vector<VkPhysicalDevice> devices(deviceCount);
+    vkEnumeratePhysicalDevices(m_Instance, &deviceCount, devices.data());
+
+    //步骤封装到ChooseBestDevice函数中
+    ChooseBestDevice(devices);
+
+    if (m_PhysicalDevice == nullptr)
+    {
+        throw std::runtime_error("没有可用的GPU");
+    }
+}
+
+void HelloTriangleApplication::ChooseBestDevice(std::vector<VkPhysicalDevice> devices)
+{
+    //可以通过计算每张显卡的分数来选择最适合的显卡
+    int maxScore = 0;
+    for (auto device : devices)
+    {
+        if (!CheckQueueFamilies(device))
+            continue;
+
+        int score = CalculateScore(device);
+        if (score > maxScore)
+        {
+            maxScore = score;
+            m_PhysicalDevice = device;
+        }
+    }
+}
+
+int HelloTriangleApplication::CalculateScore(VkPhysicalDevice device)
+{
+    //详细的设备信息：名称，类型和支持的Vulkan版本等
+    VkPhysicalDeviceProperties deviceProperties;
+    vkGetPhysicalDeviceProperties(device, &deviceProperties);
+    //支持的特性：纹理压缩，64位浮点和多视口渲染(常用于VR)等
+    VkPhysicalDeviceFeatures deviceFeatures;
+    vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+
+    int score = 0;
+    //离散GPU比集成GPU更好
+    if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+    {
+        score += 1000;
+    }
+
+    //最好支持的纹理压缩格式是BC1-BC3，因为它们是所有硬件支持的格式
+    if (deviceFeatures.textureCompressionBC)
+    {
+        score += 1000;
+    }
+
+    // 最大纹理大小影响图形的质量
+    score += deviceProperties.limits.maxImageDimension2D;
+
+    /*
+     * 假设应用程序必须要求支持几何着色器 
+    if (!deviceFeatures.geometryShader) {
+        return 0;
+    }
+    */
+    return score;
+}
+
+int HelloTriangleApplication::FindQueueFamilies(VkPhysicalDevice device , VkQueueFlagBits queueFlags)
+{
+    uint32_t queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+
+    int i = 0;
+    for (const auto& queueFamily : queueFamilies)
+    {
+        if (queueFamily.queueCount > 0 && queueFamily.queueFlags & queueFlags)
+        {
+            return i;
+        }
+        i++;
+    }
+    return -1;
+}
+
+bool HelloTriangleApplication::CheckQueueFamilies(VkPhysicalDevice device)
+{
+    int index = FindQueueFamilies(device, VK_QUEUE_GRAPHICS_BIT);
+    return index != -1;
+}
+
+void HelloTriangleApplication::CreateLogicalDevice()
+{
+    int queueFamilyIndex = FindQueueFamilies(m_PhysicalDevice, VK_QUEUE_GRAPHICS_BIT);
+    
 }
