@@ -34,6 +34,8 @@ private:
                                   VkDebugUtilsMessageTypeFlagsEXT             messageType ,
                                   const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData , void* pUserData);
 
+    void CreateSurface();
+
     void ChoosePhysicalDevice();
     void ChooseBestDevice(std::vector<VkPhysicalDevice> devices);
     int  CalculateScore(VkPhysicalDevice device);
@@ -45,9 +47,8 @@ private:
     void HandleCreateInfo_DeviceQueue(VkDeviceQueueCreateInfo& queueCreateInfo , const float& queuePriority ,
                                       int                      queueFamilyIndex);
 
-    void                    CreateLogicalDevice();
-    VkDeviceQueueCreateInfo HandleCreateInfo_DeviceQueue(VkDeviceQueueCreateInfo& createInfo ,
-                                                         const float&             queuePriority);
+    void CreateLogicalDevice();
+
 
     //窗口相关
     GLFWwindow* window;
@@ -55,7 +56,9 @@ private:
     VkInstance               m_Instance;
     VkDebugUtilsMessengerEXT m_Messenger;
     //这一对象可以在VkInstance进行清除操作时，自动清除自己，所以我们不需要再cleanup函数中对它进行清除。
+    VkSurfaceKHR     m_Surface;
     VkPhysicalDevice m_PhysicalDevice;
     VkDevice         m_Device;
     VkQueue          m_GraphicsQueue;
+    VkQueue          m_PresentQueue;
 };

@@ -74,6 +74,7 @@ void HelloTriangleApplication::InitVulkan()
 {
     CreateInstance();
     CreateDebugMessenger();
+    CreateSurface();
     ChoosePhysicalDevice();
     CreateLogicalDevice();
 }
@@ -93,6 +94,7 @@ void HelloTriangleApplication::CleanUp()
         DestroyDebugUtilsMessengerEXT(m_Instance, m_Messenger, nullptr);
     }
 
+    vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
     vkDestroyInstance(m_Instance, nullptr);
     vkDestroyDevice(m_Device, nullptr);
     glfwDestroyWindow(window);
@@ -308,6 +310,14 @@ VKAPI_ATTR VkBool32 VKAPI_CALL HelloTriangleApplication::DebugCallback
     return VK_FALSE;
 }
 
+void HelloTriangleApplication::CreateSurface()
+{
+    if (glfwCreateWindowSurface(m_Instance, window, nullptr, &m_Surface) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to create window surface!");
+    }
+}
+
 void HelloTriangleApplication::ChoosePhysicalDevice()
 {
     uint32_t deviceCount = 0;
@@ -389,14 +399,17 @@ int HelloTriangleApplication::FindQueueFamilies(VkPhysicalDevice device , VkQueu
     std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 
+    VkBool32 presentSupport = false;
+
     int i = 0;
     for (const auto& queueFamily : queueFamilies)
     {
-        if (queueFamily.queueCount > 0 && queueFamily.queueFlags & queueFlags)
+        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, m_Surface, &presentSupport);
+        //既有图像能力，又有呈现支持
+        if (queueFamily.queueCount > 0 && ( queueFamily.queueFlags & queueFlags ) && presentSupport)
         {
             return i;
         }
-        i++;
     }
     return -1;
 }
@@ -427,8 +440,9 @@ void HelloTriangleApplication::CreateLogicalDevice()
     {
         throw std::runtime_error("failed to create logical device!");
     }
-
+    //两个指针指向同一个队列，因为它既支持图形又支持呈现
     vkGetDeviceQueue(m_Device, queueFamilyIndex, 0, &m_GraphicsQueue);
+    vkGetDeviceQueue(m_Device, queueFamilyIndex, 0, &m_PresentQueue);
 }
 
 void HelloTriangleApplication::HandleCreateInfo_DeviceQueue(VkDeviceQueueCreateInfo& queueCreateInfo ,
