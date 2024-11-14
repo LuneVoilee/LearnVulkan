@@ -206,13 +206,12 @@ Vulkan的几乎所有操作，从绘制到加载纹理都需要将操作指令�
 - 创建逻辑设备
 - 获取队列（逻辑设备->队列族索引->队列索引）
 
+✨需要强调的是：
 
-✨需要强调的是：  
-- 队列是创建逻辑设备时被创建的，因此第五步是获取而非创建。  
+- 队列是创建逻辑设备时被创建的，因此第五步是获取而非创建。
 - vkGetDeviceQueue的第三个参数，代表队列在逻辑设备的索引。  
-比如：逻辑设备有队列族1（优先级1.0），队列族2（优先级0.5），每个各请求分配了2个队列。  
-此时逻辑设备的索引3就代表 队列族2的第1个队列
-
+  比如：逻辑设备有队列族1（优先级1.0），队列族2（优先级0.5），每个各请求分配了2个队列。  
+  此时逻辑设备的索引3就代表 队列族2的第1个队列
 
 ~~~C++
 void HelloTriangleApplication::CreateLogicalDevice()
@@ -238,3 +237,5 @@ void HelloTriangleApplication::CreateLogicalDevice()
     vkGetDeviceQueue(m_Device, queueFamilyIndex, 0, &m_GraphicsQueue);
 }
 ~~~
+
+### 创建窗口表面
