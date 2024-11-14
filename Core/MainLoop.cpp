@@ -63,8 +63,8 @@ void HelloTriangleApplication::InitWindow()
 
     //glfwCreateWindow函数的前三个参数指定了要创建的窗口的宽度，高度和标题。
     //第四个参数用于指定在哪个显示器上打开窗口，最后一个参数与OpenGL相关，对我们没有意义。
-    window = glfwCreateWindow(Width, Height, "Vulkan", nullptr, nullptr);
-    if (window == nullptr)
+    m_Window = glfwCreateWindow(Width, Height, "Vulkan", nullptr, nullptr);
+    if (m_Window == nullptr)
     {
         throw std::runtime_error("创建窗口失败");
     }
@@ -81,7 +81,7 @@ void HelloTriangleApplication::InitVulkan()
 
 void HelloTriangleApplication::MainLoop()
 {
-    while (!glfwWindowShouldClose(window))
+    while (!glfwWindowShouldClose(m_Window))
     {
         glfwPollEvents();
     }
@@ -97,7 +97,7 @@ void HelloTriangleApplication::CleanUp()
     vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
     vkDestroyInstance(m_Instance, nullptr);
     vkDestroyDevice(m_Device, nullptr);
-    glfwDestroyWindow(window);
+    glfwDestroyWindow(m_Window);
     glfwTerminate();
 }
 
@@ -312,7 +312,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL HelloTriangleApplication::DebugCallback
 
 void HelloTriangleApplication::CreateSurface()
 {
-    if (glfwCreateWindowSurface(m_Instance, window, nullptr, &m_Surface) != VK_SUCCESS)
+    if (glfwCreateWindowSurface(m_Instance, m_Window, nullptr, &m_Surface) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to create window surface!");
     }
@@ -399,11 +399,10 @@ int HelloTriangleApplication::FindQueueFamilies(VkPhysicalDevice device , VkQueu
     std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 
-    VkBool32 presentSupport = false;
-
     int i = 0;
     for (const auto& queueFamily : queueFamilies)
     {
+        VkBool32 presentSupport = false;
         vkGetPhysicalDeviceSurfaceSupportKHR(device, i, m_Surface, &presentSupport);
         //既有图像能力，又有呈现支持
         if (queueFamily.queueCount > 0 && ( queueFamily.queueFlags & queueFlags ) && presentSupport)

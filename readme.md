@@ -239,3 +239,19 @@ void HelloTriangleApplication::CreateLogicalDevice()
 ~~~
 
 ### 创建窗口表面
+
+
+窗口表面（surface）是 Vulkan API 与不同操作系统窗口系统（如 Windows、Linux 和 macOS）之间的桥梁。它为不同平台的窗口提供了一个抽象层，使开发者可以通过简单的操作实现跨平台的图形输出。窗口表面的核心功能是为 Vulkan 渲染结果提供显示目标。
+
+#### 简述流程
+- 通过glfw的接口            `glfwCreateWindowSurface(m_Instance, m_Window, nullptr, &m_Surface)`可以直接创建窗口表面。
+- 在之前的队列族检测中，通过如下接口：  
+    ~~~C++
+    VkBool32 presentSupport = false;
+    vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+    ~~~
+    检测出能够呈现图像到窗口表面的队列族。
+- 获取呈现队列（上一节内容）
+
+### 交换链
+

@@ -51,7 +51,7 @@ private:
 
 
     //窗口相关
-    GLFWwindow* window;
+    GLFWwindow* m_Window;
     //Vulkan相关
     VkInstance               m_Instance;
     VkDebugUtilsMessengerEXT m_Messenger;
