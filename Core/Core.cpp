@@ -1,18 +1,18 @@
-﻿
-
-#include <exception>
+﻿#include <exception>
 #include <iostream>
 #include <ostream>
-
 #include "MainLoop.h"
 
-int main() {
+int main()
+{
+    std::cout << _MSVC_LANG << std::endl; //202002
     HelloTriangleApplication app;
-
-    try {
+    try
+    {
         app.run();
     }
-    catch (const std::exception& e) {
+    catch (const std::exception& e)
+    {
         std::cerr << e.what() << '\n';
         return EXIT_FAILURE;
     }

@@ -1,8 +1,16 @@
 ﻿#pragma once
+
+#include <algorithm>
 #include <vector>
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.h>
 
+struct SwapChainSupportDetails
+{
+    VkSurfaceCapabilitiesKHR        capabilities;
+    std::vector<VkSurfaceFormatKHR> formats;
+    std::vector<VkPresentModeKHR>   presentModes;
+};
 
 class HelloTriangleApplication
 {
@@ -34,18 +42,31 @@ private:
                                   VkDebugUtilsMessageTypeFlagsEXT             messageType ,
                                   const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData , void* pUserData);
 
+
     void CreateSurface();
+
 
     void ChoosePhysicalDevice();
     void ChooseBestDevice(std::vector<VkPhysicalDevice> devices);
     int  CalculateScore(VkPhysicalDevice device);
-    int  FindQueueFamilies(VkPhysicalDevice device , VkQueueFlagBits queueFlags);
-    bool CheckQueueFamilies(VkPhysicalDevice device);
-    void HandleCreateInfo_Device(VkDeviceQueueCreateInfo   queueCreateInfo ,
-                                 VkPhysicalDeviceFeatures& deviceFeatures ,
-                                 VkDeviceCreateInfo&       createInfo);
-    void HandleCreateInfo_DeviceQueue(VkDeviceQueueCreateInfo& queueCreateInfo , const float& queuePriority ,
-                                      int                      queueFamilyIndex);
+
+    bool                    CheckPhysicsDevice(VkPhysicalDevice device);
+    bool                    CheckDeviceExtensionSupport(VkPhysicalDevice device);
+    int                     GetQueueFamiliesIndex(VkPhysicalDevice device , VkQueueFlagBits queueFlags);
+    bool                    CheckQueueFamilies(VkPhysicalDevice device);
+    SwapChainSupportDetails GetSwapChainDetails(VkPhysicalDevice device);
+    bool                    CheckSwapChainSupport(VkPhysicalDevice device);
+    VkSurfaceFormatKHR      ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
+    VkPresentModeKHR        ChooseSwapPresentMode(std::vector<VkPresentModeKHR> availableFormatsPresentModes);
+    VkExtent2D              ChooseSwapResolution(const VkSurfaceCapabilitiesKHR& capabilities);
+
+    void HandleCreateInfo_Device(VkDeviceQueueCreateInfo queueCreateInfo , VkPhysicalDeviceFeatures& deviceFeatures ,
+                                 VkDeviceCreateInfo&     createInfo);
+    VkSwapchainCreateInfoKHR HandleCreateInfo_SwapChain(VkSurfaceFormatKHR surfaceFormat , VkExtent2D extent ,
+                                                        uint32_t           imageCount);
+    void                     CreateSwapChain();
+    void                     HandleCreateInfo_DeviceQueue(VkDeviceQueueCreateInfo& queueCreateInfo , const float& queuePriority ,
+                                      int                                          queueFamilyIndex);
 
     void CreateLogicalDevice();
 

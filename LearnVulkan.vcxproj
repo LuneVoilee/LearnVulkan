@@ -94,6 +94,7 @@
             <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
             <ConformanceMode>true</ConformanceMode>
             <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+            <LanguageStandard>stdcpp20</LanguageStandard>
         </ClCompile>
         <Link>
             <SubSystem>Console</SubSystem>
@@ -110,6 +111,7 @@
             <ConformanceMode>true</ConformanceMode>
             <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
             <AdditionalIncludeDirectories>C:\VulkanSDK\1.3.296.0\Include;C:\Users\111\glfw-3.3.8\glfw_use\include</AdditionalIncludeDirectories>
+            <LanguageStandard>stdcpp20</LanguageStandard>
         </ClCompile>
         <Link>
             <SubSystem>Console</SubSystem>
@@ -129,6 +131,7 @@
             <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
             <ConformanceMode>true</ConformanceMode>
             <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+            <LanguageStandard>stdcpp20</LanguageStandard>
         </ClCompile>
         <Link>
             <SubSystem>Console</SubSystem>
@@ -148,6 +151,7 @@
             <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
             <ConformanceMode>true</ConformanceMode>
             <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+            <LanguageStandard>stdcpp20</LanguageStandard>
         </ClCompile>
         <Link>
             <SubSystem>Console</SubSystem>
@@ -236,6 +240,7 @@
     </ItemGroup>
     <ItemGroup>
         <ClInclude Include="Core\MainLoop.h"/>
+        <ClInclude Include="Math\Math.h"/>
     </ItemGroup>
     <ItemGroup>
         <Content Include="readme.md"/>
