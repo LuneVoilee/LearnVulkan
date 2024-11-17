@@ -62,11 +62,11 @@ private:
 
     void HandleCreateInfo_Device(VkDeviceQueueCreateInfo queueCreateInfo , VkPhysicalDeviceFeatures& deviceFeatures ,
                                  VkDeviceCreateInfo&     createInfo);
-    VkSwapchainCreateInfoKHR HandleCreateInfo_SwapChain(VkSurfaceFormatKHR surfaceFormat , VkExtent2D extent ,
-                                                        uint32_t           imageCount);
-    void                     CreateSwapChain();
-    void                     HandleCreateInfo_DeviceQueue(VkDeviceQueueCreateInfo& queueCreateInfo , const float& queuePriority ,
-                                      int                                          queueFamilyIndex);
+    VkSwapchainCreateInfoKHR HandleCreateInfo_SwapChain(
+    );
+    void CreateSwapChain();
+    void HandleCreateInfo_DeviceQueue(VkDeviceQueueCreateInfo& queueCreateInfo , const float& queuePriority ,
+                                      int                      queueFamilyIndex);
 
     void CreateLogicalDevice();
 
@@ -77,9 +77,13 @@ private:
     VkInstance               m_Instance;
     VkDebugUtilsMessengerEXT m_Messenger;
     //这一对象可以在VkInstance进行清除操作时，自动清除自己，所以我们不需要再cleanup函数中对它进行清除。
-    VkSurfaceKHR     m_Surface;
-    VkPhysicalDevice m_PhysicalDevice;
-    VkDevice         m_Device;
-    VkQueue          m_GraphicsQueue;
-    VkQueue          m_PresentQueue;
+    VkSurfaceKHR         m_Surface;
+    VkPhysicalDevice     m_PhysicalDevice;
+    VkDevice             m_Device;
+    VkQueue              m_GraphicsQueue;
+    VkQueue              m_PresentQueue;
+    VkSwapchainKHR       m_SwapChain;
+    std::vector<VkImage> m_SwapChainImages;
+    VkFormat             m_SwapChainImageFormat;
+    VkExtent2D           m_SwapChainExtent;
 };

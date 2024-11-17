@@ -103,6 +103,7 @@ void HelloTriangleApplication::CleanUp()
         DestroyDebugUtilsMessengerEXT(m_Instance, m_Messenger, nullptr);
     }
 
+    vkDestroySwapchainKHR(m_Device, m_SwapChain, nullptr);
     vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
     vkDestroyInstance(m_Instance, nullptr);
     vkDestroyDevice(m_Device, nullptr);
@@ -425,6 +426,7 @@ int HelloTriangleApplication::GetQueueFamiliesIndex(VkPhysicalDevice device , Vk
         {
             return i;
         }
+        i++;
     }
     return -1;
 }
@@ -609,38 +611,85 @@ void HelloTriangleApplication::HandleCreateInfo_Device(VkDeviceQueueCreateInfo  
 
 void HelloTriangleApplication::CreateSwapChain()
 {
-    SwapChainSupportDetails swapChainSupport = GetSwapChainDetails(m_PhysicalDevice);
+    VkSwapchainCreateInfoKHR createInfo = HandleCreateInfo_SwapChain();
 
-    VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(swapChainSupport.formats);
-    VkPresentModeKHR   presentMode = ChooseSwapPresentMode(swapChainSupport.presentModes);
-    VkExtent2D         extent = ChooseSwapResolution(swapChainSupport.capabilities);
-
-    uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
-    //maxImageCount的值为0表明，只要内存可以满足，我们可以使用任意数量的图像。
-    if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
+    if (vkCreateSwapchainKHR(m_Device, &createInfo, nullptr, &m_SwapChain) != VK_SUCCESS)
     {
-        imageCount = swapChainSupport.capabilities.maxImageCount;
+        throw std::runtime_error("创建交换链失败！");
     }
 
-    VkSwapchainCreateInfoKHR createInfo = HandleCreateInfo_SwapChain(surfaceFormat, extent, imageCount);
-    
+    vkGetSwapchainImagesKHR(m_Device, m_SwapChain, &createInfo.minImageCount, nullptr);
+    m_SwapChainImages.resize(createInfo.minImageCount);
+    vkGetSwapchainImagesKHR(m_Device, m_SwapChain, &createInfo.minImageCount, m_SwapChainImages.data());
 }
 
-VkSwapchainCreateInfoKHR HelloTriangleApplication::HandleCreateInfo_SwapChain(
-    VkSurfaceFormatKHR surfaceFormat , VkExtent2D extent , uint32_t imageCount)
+VkSwapchainCreateInfoKHR HelloTriangleApplication::HandleCreateInfo_SwapChain()
 {
+    SwapChainSupportDetails swapChainDetails = GetSwapChainDetails(m_PhysicalDevice);
+
+    VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(swapChainDetails.formats);
+    VkPresentModeKHR   presentMode = ChooseSwapPresentMode(swapChainDetails.presentModes);
+    VkExtent2D         extent = ChooseSwapResolution(swapChainDetails.capabilities);
+
+    m_SwapChainImageFormat = surfaceFormat.format;
+    m_SwapChainExtent = extent;
+
+
     VkSwapchainCreateInfoKHR createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     createInfo.surface = m_Surface;
+
+    //imageCount：能够支持的缓冲区的个数
+    //使用minImageCount + 1来支持三倍缓冲
+    uint32_t imageCount = swapChainDetails.capabilities.minImageCount + 1;
+    //maxImageCount的值为0表明，可以使用任意数量的缓冲区。所以只有maxImageCount的值大于0的时候需要检查。
+    if (swapChainDetails.capabilities.maxImageCount > 0 && imageCount > swapChainDetails.capabilities.maxImageCount)
+    {
+        imageCount = swapChainDetails.capabilities.maxImageCount;
+    }
     createInfo.minImageCount = imageCount;
+
     createInfo.imageFormat = surfaceFormat.format;
     createInfo.imageColorSpace = surfaceFormat.colorSpace;
     createInfo.imageExtent = extent;
-    //mageArrayLayers成员变量用于指定每个图像所包含的层次。通常，来说它的值为1。但对于VR相关的应用程序来说，会使用更多的层次。
+
+    //mageArrayLayers成员变量用于指定每个图像所包含的层次。对于非立体3D应用,它的值为1。但对于VR等应用程序来说，会使用更多的层次。
     createInfo.imageArrayLayers = 1;
+
     //imageUsage成员变量用于指定我们将在图像上进行怎样的操作。我们在图像上进行绘制操作，也就是将图像作为一个颜色附着来使用。
     //如果读者需要对图像进行后期处理之类的操作，可以使用VK_IMAGE_USAGE_TRANSFER_DST_BIT作为imageUsage成员变量的值，让交换链图像可以作为传输的目的图像。
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
+    int index = GetQueueFamiliesIndex(m_PhysicalDevice, VK_QUEUE_GRAPHICS_BIT);
+
+
+    //VK_SHARING_MODE_EXCLUSIVE：一张图像同一时间只能被一个队列族所拥有，在另一队列族使用它之前，必须显式地改变图像所有权。
+    //这一模式下性能表现最佳。
+    createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    /*
+     * 如果不要求队列族必须支持两个功能：
+     *     //VK_SHARING_MODE_CONCURRENT：图像可以在多个队列族间使用，不需要显式地改变图像所有权。
+     *     //协同模式需要我们使用queueFamilyIndexCount和pQueueFamilyIndices来指定共享所有权的队列族。
+     *     //如果图形队列族和呈现队列族是同一个队列族(大部分情况下都是这样)，我们就不能使用协同模式，协同模式需要我们指定至少两个不同的队列族。
+     *     createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+     *     //VK_SHARING_MODE_EXCLUSIVE模式没必要设置这两个
+     *     createInfo.queueFamilyIndexCount = 2;
+     *     createInfo.pQueueFamilyIndices = {index1 , index2};
+     */
+
+    //我们可以为交换链中的图像指定一个固定的变换操作(需要交换链具有supportedTransforms特性)，比如顺时针旋转90度或是水平翻转。
+    //如果不需要进行任何变换操作，指定使用currentTransform变换即可。
+    createInfo.preTransform = swapChainDetails.capabilities.currentTransform;
+
+    //compositeAlpha成员变量用于指定alpha通道是否被用来和窗口系统中的其它窗口进行混合操作。
+    //通常，我们将其设置为VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR来忽略掉alpha通道。
+    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+
+    //presentMode成员变量用于设置呈现模式。clipped成员变量被设置为VK_TRUE,表示我们不关心被窗口系统中的其它窗口遮挡的像素的颜色，这允许Vulkan采取一定的优化措施，但如果我们回读窗口的像素值就可能出现问题。
+    createInfo.presentMode = presentMode;
+    createInfo.clipped = VK_TRUE;
+
+    //最后是oldSwapchain成员变量，需要指定它，是因为应用程序在运行过程中交换链可能会失效。比如，改变窗口大小后，交换链需要重建，重建时需要之前的交换链
+    createInfo.oldSwapchain = VK_NULL_HANDLE;
     return createInfo;
 }

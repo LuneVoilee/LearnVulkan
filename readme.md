@@ -254,4 +254,268 @@ void HelloTriangleApplication::CreateLogicalDevice()
 - 获取呈现队列（上一节内容）
 
 ### 交换链
+交换链，用于管理图像的呈现和显示。它负责在应用程序和显示设备之间进行图像的交换，使得绘制的内容可以最终显示在屏幕上。
+
+#### 简述流程
+- 检测设备拓展是否支持交换链：  
+
+    通过`vkEnumerateDeviceExtensionProperties`获取所有支持的接口，然后遍历查询是否含有`VK_KHR_SWAPCHAIN_EXTENSION_NAME`。  
+
+    实际上，如果设备支持呈现队列，那么它就一定支持交换链。但我们最好还是显式地进行交换链扩展的检测，然后显式地启用交换链扩展。  
+
+    同时，逻辑设备的创建信息需要修改`enabledExtensionCount`和`ppEnabledExtensionNames`
+- 配置交换链支持细节
+    ~~~C++
+    //存储查询信息的结构体
+    struct SwapChainSupportDetails 
+    {
+        VkSurfaceCapabilitiesKHR capabilities;
+        std::vector<VkSurfaceFormatKHR> formats;
+        std::vector<VkPresentModeKHR> presentModes;
+    };
+    ~~~
+    每个交换链有三种和表面相关的最基本的属性需要我们检查：
+
+    - 基础表面特性
+
+        `vkGetPhysicalDeviceSurfaceCapabilitiesKHR`
+
+        通过参数返回一个结构体`VkSurfaceCapabilitiesKHR`，存放了交换链的最小/最大图像数量，最小/最大图像宽度、高度等信息。
+
+        一般而言，交换链的分辨率就是最终窗口的分辨率。我们通过`VkSurfaceCapabilitiesKHR`里的`currentExtent`,`minImageExtent`,`minImageExtent`和glfw窗口大小等信息设置交换链的分辨率。
+        ~~~C++
+        VkExtent2D HelloTriangleApplication::ChooseSwapResolution(const VkSurfaceCapabilitiesKHR& capabilities)
+        {
+            //Vulkan通过currentExtent成员变量来告知适合我们窗口的交换范围。
+            //一些窗口系统会使用一个特殊值，uint32_t变量类型的最大值，表示允许我们自己选择对于窗口最合适的交换范围
+            if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
+            {
+                return capabilities.currentExtent;
+            }
+        
+            VkExtent2D actualExtent;
+            actualExtent.width = Math::Clamp(Width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+            actualExtent.height = Math::Clamp(Height，capabilities.minImageExtent.height,capabilities.c.height);
+
+            return actualExtent;
+        }
+        ~~~
+    - 表面格式
+
+        `vkGetPhysicalDeviceSurfaceFormatsKHR`
+
+        第四个参数返回VkSurfaceFormatKHR类型的数组，表示设备支持的所有表面格式，每个VkSurfaceFormatKHR包含了一个format（像素格式）和一个colorSpace（颜色空间）。
+
+        - 像素格式
+            - 颜色格式
+                - VK_FORMAT_R8G8B8A8_UNORM:
+
+                        每个像素由 4 个 8 位通道（红、绿、蓝、alpha）组成。
+
+                        UNORM 表示颜色值是 [0, 1] 范围内的线性归一化值。
+
+                - VK_FORMAT_B8G8R8A8_SRGB:
+
+                        类似，但颜色通道顺序为蓝、绿、红、alpha。
+
+                        SRGB 表示使用标准 RGB gamma 校正。
+
+            - 深度格式
+                - VK_FORMAT_D24_UNORM_S8_UINT:
+
+                        24 位用于深度值，8 位用于模板值（Stencil）。
+
+
+                - VK_FORMAT_D32_SFLOAT:
+
+                        32 位浮点深度值。
+
+            - 其他特殊格式：
+
+                - VK_FORMAT_R5G6B5_UNORM_PACK16:
+                
+                        16 位 RGB 格式（5 位红，6 位绿，5 位蓝）。
+
+                - VK_FORMAT_A2B10G10R10_UNORM_PACK32: 
+                
+                        32 位压缩 RGB 和 Alpha。
+        - 颜色空间
+
+            colorSpace 定义了如何解释存储在图像中的颜色数据。它主要描述了颜色值的范围和校正方式（如是否使用 gamma 校正）。
+
+            - VK_COLOR_SPACE_SRGB_NONLINEAR_KHR：
+
+                    默认颜色空间，表示使用标准 sRGB gamma 校正
+                    sRGB 是一种非线性颜色空间，优化了人眼对亮度变化的感知
+
+            - VK_COLOR_SPACE_LINEAR_KHR：
+
+                    线性颜色空间。
+                    没有应用 gamma 校正，直接处理线性光照强度
+
+            - VK_COLOR_SPACE_HDR10_ST2084_EXT（HDR 支持）：
+
+                    用于支持高动态范围（HDR）显示
+                    提供更高亮度范围、更细腻的对比度
+
+            - VK_COLOR_SPACE_BT709_LINEAR_EXT 和 VK_COLOR_SPACE_BT2020_LINEAR_EXT：
+
+                    用于高级显示设备，如电视和影院设备
+
+        我们选择使用VK_FORMAT_B8G8R8A8_UNORM和VK_COLOR_SPACE_SRGB_NONLINEAR_KHR。
+        ~~~C++
+        for (const auto& availableFormat : availableFormats)
+        {
+            if (availableFormat.format == VK_FORMAT_B8G8R8A8_UNORM &&   
+                availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) 
+            {
+                return availableFormat;
+            }
+        }
+        ~~~
+
+    - 可用的呈现模式
+
+        `vkGetPhysicalDeviceSurfacePresentModesKHR`
+
+        通过参数返回VkSurfaceFormatKHR类型的数组，表示设备支持的所有呈现模式。
+
+        - VK_PRESENT_MODE_IMMEDIATE_KHR（立即模式）
+
+            描述：
+
+                应用程序画完一帧，就直接把它提交到屏幕上，不管显示器是不是准备好。
+
+            可能问题：
+            
+                显示器可能还在显示上一帧的部分内容，就接着展示新的一帧了，显示器上同时出现多帧的画面，即为画面撕裂。
+
+            适合场景：
+            
+                不在意画面撕裂但追求最低延迟的场景，比如一些工具软件。
+            
+
+        - VK_PRESENT_MODE_FIFO_KHR（队列模式， V-Sync）
+
+            描述：
+
+                画面按照先进先出的顺序排队，显示器每刷新一次（垂直同步）就从队列里拿一帧。如果队列满了，应用程序需要等前面的帧被显示才能提交新帧。
+
+            问题：
+
+                如果显卡无法按时生成一帧图像（比如 60 FPS 显示器上帧率低于 60），会导致重复显示上一帧，产生明显的卡顿感。
+
+            适合场景：
+
+                普通游戏，注重画面稳定性。
+
+        - VK_PRESENT_MODE_FIFO_RELAXED_KHR（放松队列模式）
+
+            描述：
+
+                和上面的队列模式差不多，但放松了对垂直同步的严格要求。如果应用程序在某个垂直同步周期中没有提交新帧（队列为空），但在下一个垂直同步前提交了新帧，那么这帧会立即显示，因此可能会导致撕裂。
+            效果：
+
+                前两者的折中，减少延迟，但可能出现撕裂。
+
+            适合场景：
+
+                偶尔帧率不稳定的应用，比如非高强度的实时渲染。
+
+        - VK_PRESENT_MODE_MAILBOX_KHR（邮箱模式，三倍缓冲）
+
+            描述：
+
+                三倍缓冲使用三个缓冲区：
+                第一个缓冲区供显示器读取（显示的帧）。
+                第二个缓冲区存储已经渲染好的下一帧，等待显示。
+                第三个缓冲区供显卡继续渲染新的一帧。
+
+                假设第一个缓冲区正在显示frame1，第二个缓冲区存储frame2，
+                若此时第三个缓冲区里frame3已经被渲染好了，
+                则第二个缓冲区会将frame2替换为frame3。可以保证显示的下一帧始终是最新的。
+
+            效果：
+                
+                只要算力足够，没有撕裂，延迟更低。
+
+            适合场景：
+
+                追求流畅画面和低延迟的高性能游戏，比如 FPS 和动作游戏。
+            
+        上面四种呈现模式，只有VK_PRESENT_MODE_FIFO_KHR模式保证一定可用，但许多驱动程序对VK_PRESENT_MODE_FIFO_KHR呈现模式的支持还不够好。
+
+        我们选择呈现模式的优先级：
+        `VK_PRESENT_MODE_MAILBOX_KHR` >
+        `VK_PRESENT_MODE_IMMEDIATE_KHR` > `VK_PRESENT_MODE_FIFO_KHR`
+
+- 创建交换链
+    ~~~C++
+    VkSwapchainCreateInfoKHR createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    createInfo.surface = m_Surface;
+
+    //imageCount：能够支持的缓冲区的个数
+    //使用minImageCount + 1来支持三倍缓冲
+    uint32_t imageCount = swapChainDetails.capabilities.minImageCount + 1;
+    //maxImageCount的值为0表明，可以使用任意数量的缓冲区。所以只有maxImageCount的值大于0的时候需要检查。
+    if (swapChainDetails.capabilities.maxImageCount > 0 && imageCount > swapChainDetails.capabilities.maxImageCount)
+    {
+        imageCount = swapChainDetails.capabilities.maxImageCount;
+    }
+    createInfo.minImageCount = imageCount;
+
+    createInfo.imageFormat = surfaceFormat.format;
+    createInfo.imageColorSpace = surfaceFormat.colorSpace;
+    createInfo.imageExtent = extent;
+
+    //mageArrayLayers成员变量用于指定每个图像所包含的层次。对于非立体3D应用,它的值为1。但对于VR等应用程序来说，会使用更多的层次。
+    createInfo.imageArrayLayers = 1;
+
+    //imageUsage成员变量用于指定我们将在图像上进行怎样的操作。我们在图像上进行绘制操作，也就是将图像作为一个颜色附着来使用。
+    //如果需要对图像进行后期处理之类的操作，可以使用VK_IMAGE_USAGE_TRANSFER_DST_BIT作为imageUsage成员变量的值，让交换链图像可以作为传输的目的图像。
+    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+    int index = GetQueueFamiliesIndex(m_PhysicalDevice, VK_QUEUE_GRAPHICS_BIT);
+
+
+    //VK_SHARING_MODE_EXCLUSIVE：一张图像同一时间只能被一个队列族所拥有，在另一队列族使用它之前，必须显式地改变图像所有权。
+    //这一模式下性能表现最佳。
+    createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    /*
+     * 如果不要求队列族必须支持两个功能：
+     *     //VK_SHARING_MODE_CONCURRENT：图像可以在多个队列族间使用，不需要显式地改变图像所有权。
+     *     //协同模式需要我们使用queueFamilyIndexCount和pQueueFamilyIndices来指定共享所有权的队列族。
+     *     //如果图形队列族和呈现队列族是同一个队列族(大部分情况下都是这样)，我们就不能使用协同模式，协同模式需要我们指定至少两个不同的队列族。
+     *     createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+     *     //VK_SHARING_MODE_EXCLUSIVE模式没必要设置这两个
+     *     createInfo.queueFamilyIndexCount = 2;
+     *     createInfo.pQueueFamilyIndices = {index1 , index2};
+     */
+
+    //我们可以为交换链中的图像指定一个固定的变换操作(需要交换链具有supportedTransforms特性)，比如顺时针旋转90度或是水平翻转。
+    //如果不需要进行任何变换操作，指定使用currentTransform变换即可。
+    createInfo.preTransform = swapChainDetails.capabilities.currentTransform;
+
+    //compositeAlpha成员变量用于指定alpha通道是否被用来和窗口系统中的其它窗口进行混合操作。
+    //通常，我们将其设置为VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR来忽略掉alpha通道。
+    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+
+    //presentMode成员变量用于设置呈现模式。clipped成员变量被设置为VK_TRUE,表示我们不关心被窗口系统中的其它窗口遮挡的像素的颜色，这允许Vulkan采取一定的优化措施，但如果我们回读窗口的像素值就可能出现问题。
+    createInfo.presentMode = presentMode;
+    createInfo.clipped = VK_TRUE;
+
+    //最后是oldSwapchain成员变量，需要指定它，是因为应用程序在运行过程中交换链可能会失效。比如，改变窗口大小后，交换链需要重建，重建时需要之前的交换链
+    createInfo.oldSwapchain = VK_NULL_HANDLE;
+    ~~~
+
+- 获取交换链图像的图像句柄
+
+    经典操作：
+
+    ~~~C++
+        vkGetSwapchainImagesKHR(m_Device, m_SwapChain, &createInfo.minImageCount, nullptr);
+        m_SwapChainImages.resize(createInfo.minImageCount);
+        vkGetSwapchainImagesKHR(m_Device, m_SwapChain, &createInfo.minImageCount, m_SwapChainImages.data());
+    ~~~
 
