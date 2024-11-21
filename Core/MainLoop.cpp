@@ -8,7 +8,7 @@
 #include "../Math/Math.h"
 
 
-constexpr uint32_t Width = 800;
+constexpr uint32_t Width  = 800;
 constexpr uint32_t Height = 600;
 
 const std::vector<const char*> validationLayers = {
@@ -86,6 +86,8 @@ void HelloTriangleApplication::InitVulkan()
     ChoosePhysicalDevice();
     CreateLogicalDevice();
     CreateSwapChain();
+    CreateImageViews();
+    CreateGraphicsPipeline();
 }
 
 void HelloTriangleApplication::MainLoop()
@@ -98,6 +100,11 @@ void HelloTriangleApplication::MainLoop()
 
 void HelloTriangleApplication::CleanUp()
 {
+    for (auto imageView : m_ImageViews)
+    {
+        vkDestroyImageView(m_Device, imageView, nullptr);
+    }
+
     if (enableValidationLayers)
     {
         DestroyDebugUtilsMessengerEXT(m_Instance, m_Messenger, nullptr);
@@ -139,29 +146,29 @@ void HelloTriangleApplication::CreateInstance()
 
 void HelloTriangleApplication::HandleAppInfo(VkApplicationInfo& appInfo)
 {
-    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = "Hello Triangle";
+    appInfo.sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    appInfo.pApplicationName   = "Hello Triangle";
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.pEngineName = "No Engine";
-    appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_0;
+    appInfo.pEngineName        = "No Engine";
+    appInfo.engineVersion      = VK_MAKE_VERSION(1, 0, 0);
+    appInfo.apiVersion         = VK_API_VERSION_1_0;
 }
 
 void HelloTriangleApplication::HandleCreateInfo(const VkApplicationInfo& appInfo , VkInstanceCreateInfo& createInfo)
 {
-    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    createInfo.sType            = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
 
     //将所需的拓展封装进getRequiredExtensions
-    auto glfwExtensions = GetRequiredExtensions();
-    createInfo.enabledExtensionCount = static_cast<uint32_t>(glfwExtensions.size());
+    auto glfwExtensions                = GetRequiredExtensions();
+    createInfo.enabledExtensionCount   = static_cast<uint32_t>(glfwExtensions.size());
     createInfo.ppEnabledExtensionNames = glfwExtensions.data();
 
     //校验层信息
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
     if (enableValidationLayers)
     {
-        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+        createInfo.enabledLayerCount   = static_cast<uint32_t>(validationLayers.size());
         createInfo.ppEnabledLayerNames = validationLayers.data();
 
         HandleCreateInfo_DebugMessager(debugCreateInfo);
@@ -245,7 +252,7 @@ std::vector<const char*> HelloTriangleApplication::GetRequiredExtensions()
 
 void HelloTriangleApplication::HandleCreateInfo_DebugMessager(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
 {
-    createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    createInfo.sType           = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
@@ -253,7 +260,7 @@ void HelloTriangleApplication::HandleCreateInfo_DebugMessager(VkDebugUtilsMessen
             VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
             VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     createInfo.pfnUserCallback = DebugCallback;
-    createInfo.pUserData = nullptr;
+    createInfo.pUserData       = nullptr;
 }
 
 void HelloTriangleApplication::CreateDebugMessenger()
@@ -361,7 +368,7 @@ void HelloTriangleApplication::ChooseBestDevice(std::vector<VkPhysicalDevice> de
         int score = CalculateScore(device);
         if (score > maxScore)
         {
-            maxScore = score;
+            maxScore         = score;
             m_PhysicalDevice = device;
         }
     }
@@ -548,7 +555,7 @@ VkExtent2D HelloTriangleApplication::ChooseSwapResolution(const VkSurfaceCapabil
     VkExtent2D actualExtent;
 
     //关于我只在这个文件里使用std::clamp会出现识别不到的情况，花了一个小时无法解决，所以不得不自己大无语手写Clamp函数这件事😅
-    actualExtent.width = Math::Clamp(Width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+    actualExtent.width  = Math::Clamp(Width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
     actualExtent.height = Math::Clamp(Height, capabilities.minImageExtent.height,
                                       capabilities.maxImageExtent.height);
     return actualExtent;
@@ -557,8 +564,8 @@ VkExtent2D HelloTriangleApplication::ChooseSwapResolution(const VkSurfaceCapabil
 void HelloTriangleApplication::CreateLogicalDevice()
 {
     //创建逻辑设备需要先创建队列
-    VkDeviceQueueCreateInfo queueCreateInfo = {};
-    float                   queuePriority = 1.0f;
+    VkDeviceQueueCreateInfo queueCreateInfo  = {};
+    float                   queuePriority    = 1.0f;
     int                     queueFamilyIndex = GetQueueFamiliesIndex(m_PhysicalDevice, VK_QUEUE_GRAPHICS_BIT);
     HandleCreateInfo_DeviceQueue(queueCreateInfo, queuePriority, queueFamilyIndex);
 
@@ -581,9 +588,9 @@ void HelloTriangleApplication::CreateLogicalDevice()
 void HelloTriangleApplication::HandleCreateInfo_DeviceQueue(VkDeviceQueueCreateInfo& queueCreateInfo ,
                                                             const float& queuePriority , int queueFamilyIndex)
 {
-    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    queueCreateInfo.sType            = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     queueCreateInfo.queueFamilyIndex = queueFamilyIndex;
-    queueCreateInfo.queueCount = 1;
+    queueCreateInfo.queueCount       = 1;
     queueCreateInfo.pQueuePriorities = &queuePriority;
 }
 
@@ -591,16 +598,16 @@ void HelloTriangleApplication::HandleCreateInfo_Device(VkDeviceQueueCreateInfo  
                                                        VkPhysicalDeviceFeatures& deviceFeatures ,
                                                        VkDeviceCreateInfo&       createInfo)
 {
-    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    createInfo.pQueueCreateInfos = &queueCreateInfo;
-    createInfo.queueCreateInfoCount = 1;
-    createInfo.pEnabledFeatures = &deviceFeatures;
-    createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
+    createInfo.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    createInfo.pQueueCreateInfos       = &queueCreateInfo;
+    createInfo.queueCreateInfoCount    = 1;
+    createInfo.pEnabledFeatures        = &deviceFeatures;
+    createInfo.enabledExtensionCount   = static_cast<uint32_t>(deviceExtensions.size());
     createInfo.ppEnabledExtensionNames = deviceExtensions.data();
     //让设备和实例使用相同的校验层
     if (enableValidationLayers)
     {
-        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+        createInfo.enabledLayerCount   = static_cast<uint32_t>(validationLayers.size());
         createInfo.ppEnabledLayerNames = validationLayers.data();
     }
     else
@@ -628,16 +635,16 @@ VkSwapchainCreateInfoKHR HelloTriangleApplication::HandleCreateInfo_SwapChain()
     SwapChainSupportDetails swapChainDetails = GetSwapChainDetails(m_PhysicalDevice);
 
     VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(swapChainDetails.formats);
-    VkPresentModeKHR   presentMode = ChooseSwapPresentMode(swapChainDetails.presentModes);
-    VkExtent2D         extent = ChooseSwapResolution(swapChainDetails.capabilities);
+    VkPresentModeKHR   presentMode   = ChooseSwapPresentMode(swapChainDetails.presentModes);
+    VkExtent2D         extent        = ChooseSwapResolution(swapChainDetails.capabilities);
 
     m_SwapChainImageFormat = surfaceFormat.format;
-    m_SwapChainExtent = extent;
+    m_SwapChainExtent      = extent;
 
 
     VkSwapchainCreateInfoKHR createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    createInfo.surface = m_Surface;
+    createInfo.sType                    = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    createInfo.surface                  = m_Surface;
 
     //imageCount：能够支持的缓冲区的个数
     //使用minImageCount + 1来支持三倍缓冲
@@ -649,9 +656,9 @@ VkSwapchainCreateInfoKHR HelloTriangleApplication::HandleCreateInfo_SwapChain()
     }
     createInfo.minImageCount = imageCount;
 
-    createInfo.imageFormat = surfaceFormat.format;
+    createInfo.imageFormat     = surfaceFormat.format;
     createInfo.imageColorSpace = surfaceFormat.colorSpace;
-    createInfo.imageExtent = extent;
+    createInfo.imageExtent     = extent;
 
     //mageArrayLayers成员变量用于指定每个图像所包含的层次。对于非立体3D应用,它的值为1。但对于VR等应用程序来说，会使用更多的层次。
     createInfo.imageArrayLayers = 1;
@@ -687,9 +694,84 @@ VkSwapchainCreateInfoKHR HelloTriangleApplication::HandleCreateInfo_SwapChain()
 
     //presentMode成员变量用于设置呈现模式。clipped成员变量被设置为VK_TRUE,表示我们不关心被窗口系统中的其它窗口遮挡的像素的颜色，这允许Vulkan采取一定的优化措施，但如果我们回读窗口的像素值就可能出现问题。
     createInfo.presentMode = presentMode;
-    createInfo.clipped = VK_TRUE;
+    createInfo.clipped     = VK_TRUE;
 
     //最后是oldSwapchain成员变量，需要指定它，是因为应用程序在运行过程中交换链可能会失效。比如，改变窗口大小后，交换链需要重建，重建时需要之前的交换链
     createInfo.oldSwapchain = VK_NULL_HANDLE;
     return createInfo;
+}
+
+void HelloTriangleApplication::CreateImageViews()
+{
+    m_ImageViews.resize(m_SwapChainImages.size());
+    for (size_t i = 0; i < m_SwapChainImages.size(); i++)
+    {
+        VkImageViewCreateInfo createInfo = {};
+        createInfo.sType                 = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        createInfo.image                 = m_SwapChainImages[i];
+        createInfo.viewType              = VK_IMAGE_VIEW_TYPE_2D;
+        createInfo.format                = m_SwapChainImageFormat;
+
+        //默认映射：红->红,绿->绿,蓝->蓝,透明->透明。可以把输入的值改到任意通道上 或 0/1
+        createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+
+        createInfo.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT; // 操作颜色数据
+        createInfo.subresourceRange.baseMipLevel   = 0; // 从最高分辨率开始
+        createInfo.subresourceRange.levelCount     = 1; // 只操作第 0 层 mipmap
+        createInfo.subresourceRange.baseArrayLayer = 0; // 从第 0 层数组开始（Vulkan 支持数组纹理，图像可以包含多个层，每层代表一个 2D 图像）
+        createInfo.subresourceRange.layerCount     = 1; // 只操作第 0 层数组
+    }
+}
+
+void HelloTriangleApplication::CreateGraphicsPipeline()
+{
+    auto VertexShaderCode   = Loader::ReadFile("../Shaders/vert.spv");
+    auto FragmentShaderCode = Loader::ReadFile("../Shaders/frag.spv");
+
+    auto VertexShaderModule   = CreateShaderModule(VertexShaderCode);
+    auto FragmentShaderModule = CreateShaderModule(FragmentShaderCode);
+
+    vkDestroyShaderModule(m_Device, FragmentShaderModule, nullptr);
+    vkDestroyShaderModule(m_Device, VertexShaderModule, nullptr);
+
+    VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
+    vertShaderStageInfo.sType                           = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vertShaderStageInfo.stage                           = VK_SHADER_STAGE_VERTEX_BIT; //指明用于哪个阶段
+    vertShaderStageInfo.module                          = VertexShaderModule;
+    vertShaderStageInfo.pName                           = "main"; //指明使用shader文件里的哪个函数。可以在一个文件里写多个着色器，通过不同的pName调用他们
+    vertShaderStageInfo.pSpecializationInfo             = nullptr;
+    /*
+    *VkPipelineShaderStageCreateInfo还有一个可选的成员变量pSpecializationInfo
+    *在这里，我们没有使用它，但这一成员变量非常值得我们在这里对它进行说明
+    *我们可以通过这一成员变量指定着色器用到的常量
+    *我们可以对同一个着色器模块对象指定不同的着色器常量用于管线创
+    *这使得编译器可以根据指定的着色器常量来消除一些条件分支，这比在渲染时，使用变量配置着色器带来的效率要高得多。
+    *如果不使用着色器常量，可以将pSpecializationInfo成员变量设置为nullptr。
+    */
+
+    VkPipelineShaderStageCreateInfo fragShaderStageInfo = {};
+    fragShaderStageInfo.sType                           = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    fragShaderStageInfo.stage                           = VK_SHADER_STAGE_FRAGMENT_BIT;
+    fragShaderStageInfo.module                          = FragmentShaderModule;
+    fragShaderStageInfo.pName                           = "main";
+
+    VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
+}
+
+VkShaderModule HelloTriangleApplication::CreateShaderModule(const std::vector<char>& code)
+{
+    VkShaderModuleCreateInfo createInfo = {};
+    createInfo.sType                    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    createInfo.codeSize                 = code.size();
+    createInfo.pCode                    = reinterpret_cast<const uint32_t*>(code.data());
+
+    VkShaderModule shaderModule;
+    if (vkCreateShaderModule(m_Device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to create shader module!");
+    }
+    return shaderModule;
 }
