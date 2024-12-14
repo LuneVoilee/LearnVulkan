@@ -95,4 +95,5 @@ private:
     std::vector<VkImageView> m_ImageViews;
     VkRenderPass             m_RenderPass;
     VkPipelineLayout         m_PipelineLayout;
+    VkPipeline               m_GraphicsPipeline;
 };

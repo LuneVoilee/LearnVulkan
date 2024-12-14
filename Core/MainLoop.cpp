@@ -101,6 +101,7 @@ void HelloTriangleApplication::MainLoop()
 
 void HelloTriangleApplication::CleanUp()
 {
+    vkDestroyPipeline(m_Device, m_GraphicsPipeline, nullptr);
     vkDestroyPipelineLayout(m_Device, m_PipelineLayout, nullptr);
     vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
 
@@ -928,6 +929,39 @@ void HelloTriangleApplication::CreateGraphicsPipeline()
     if (vkCreatePipelineLayout(m_Device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to create pipeline layout!");
+    }
+
+    VkGraphicsPipelineCreateInfo pipelineInfo = {};
+    pipelineInfo.sType                        = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.stageCount                   = 2;
+    pipelineInfo.pStages                      = shaderStages;
+    pipelineInfo.pVertexInputState            = &vertexInputInfo;
+    pipelineInfo.pInputAssemblyState          = &inputAssembly;
+    pipelineInfo.pViewportState               = &viewportState;
+    pipelineInfo.pRasterizationState          = &rasterizer;
+    pipelineInfo.pMultisampleState            = &multisampling;
+    pipelineInfo.pDepthStencilState           = nullptr; // Optional
+    pipelineInfo.pColorBlendState             = &colorBlending;
+    pipelineInfo.pDynamicState                = nullptr; // Optional
+
+    pipelineInfo.layout     = m_PipelineLayout;
+    pipelineInfo.renderPass = m_RenderPass;
+    pipelineInfo.subpass    = 0;
+
+    /*
+    basePipelineHandle和basePipelineIndex成员变量用于以一个创建好的图形管线为基础创建一个新的图形管线。
+    当要创建一个和已有管线大量设置相同的管线时，使用它的代价要比直接创建小，并且，对于从同一个管线衍生出的两个管线，在它们之间进行管线切换操作的效率也要高很多。
+    我们可以使用basePipelineHandle来指定已经创建好的管线，或是使用basePipelineIndex来指定将要创建的管线作为基础管线，用于衍生新的管线。
+    目前，我们只使用一个管线，所以将这两个成员变量分别设置为VK_NULL_HANDLE和-1，不使用基础管线衍生新的管线。
+    这两个成员变量的设置只有在VkGraphicsPipelineCreateInfo结构体的flags成员变量使用了VK_PIPELINE_CREATE_DERIVATIVE_BIT标记的情况下才会起效。
+    */
+    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
+    pipelineInfo.basePipelineIndex  = -1;             // Optional
+
+    if (vkCreateGraphicsPipelines(m_Device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_GraphicsPipeline) !=
+        VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to create graphics pipeline!");
     }
 }
 
