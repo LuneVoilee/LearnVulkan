@@ -62,6 +62,7 @@ private:
     void           CreateSwapChain();
     void           CreateLogicalDevice();
     void           CreateImageViews();
+    void           CreateRenderPass();
     void           CreateGraphicsPipeline();
     VkShaderModule CreateShaderModule(const std::vector<char>& code);
 
@@ -74,6 +75,7 @@ private:
     void HandleCreateInfo_Device(VkDeviceQueueCreateInfo queueCreateInfo , VkPhysicalDeviceFeatures& deviceFeatures ,
                                  VkDeviceCreateInfo&     createInfo);
     VkSwapchainCreateInfoKHR HandleCreateInfo_SwapChain();
+
 
     //窗口相关
     GLFWwindow* m_Window;
@@ -91,4 +93,6 @@ private:
     VkFormat                 m_SwapChainImageFormat;
     VkExtent2D               m_SwapChainExtent;
     std::vector<VkImageView> m_ImageViews;
+    VkRenderPass             m_RenderPass;
+    VkPipelineLayout         m_PipelineLayout;
 };

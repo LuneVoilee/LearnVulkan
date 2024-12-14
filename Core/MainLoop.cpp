@@ -87,6 +87,7 @@ void HelloTriangleApplication::InitVulkan()
     CreateLogicalDevice();
     CreateSwapChain();
     CreateImageViews();
+    CreateRenderPass();
     CreateGraphicsPipeline();
 }
 
@@ -100,6 +101,9 @@ void HelloTriangleApplication::MainLoop()
 
 void HelloTriangleApplication::CleanUp()
 {
+    vkDestroyPipelineLayout(m_Device, m_PipelineLayout, nullptr);
+    vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
+
     for (auto imageView : m_ImageViews)
     {
         vkDestroyImageView(m_Device, imageView, nullptr);
@@ -726,6 +730,55 @@ void HelloTriangleApplication::CreateImageViews()
     }
 }
 
+void HelloTriangleApplication::CreateRenderPass()
+{
+    //只使用一个代表交换链图像的颜色缓冲附着
+    VkAttachmentDescription colorAttachment = {};
+    colorAttachment.format                  = m_SwapChainImageFormat;
+    colorAttachment.samples                 = VK_SAMPLE_COUNT_1_BIT;
+
+    //loadOp和storeOp成员变量用于指定在渲染之前和渲染之后对附着中的数据进行的操作
+    colorAttachment.loadOp  = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+
+    //loadOp和storeOp成员变量的设置会对颜色和深度缓冲起效。
+    //stencilLoadOp成员变量和stencilStoreOp成员变量会对模板缓冲起效
+    colorAttachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+    //图像布局方式与这个图像的使用目的相关
+    //initialLayout渲染流程开始前的图像布局方式。finalLayout渲染流程结束后的图像布局方式.
+    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachment.finalLayout   = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    //一个渲染流程可以包含多个子流程。子流程依赖于上一流程处理后的帧缓冲内容。
+    //比如，许多叠加的后期处理效果就是在上一次的处理结果上进行的。
+    VkAttachmentReference colorAttachmentRef = {};
+    colorAttachmentRef.attachment            = 0;
+    //Vulkan会在子流程开始时自动将引用的附着转换到layout成员变量指定的图像布局。
+    //我们推荐将layout成员变量设置为VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL，一般而言，它的性能表现最佳。
+    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    //子流程的定义，刚才是子流程的附着
+    VkSubpassDescription subpass = {};
+    subpass.pipelineBindPoint    = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    //这里设置的颜色附着在数组中的索引会被片段着色器使用，对应我们在片段着色器中使用的 layout(location = 0) out vec4 outColor
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments    = &colorAttachmentRef;
+
+    VkRenderPassCreateInfo renderPassInfo = {};
+    renderPassInfo.sType                  = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassInfo.attachmentCount        = 1;
+    renderPassInfo.pAttachments           = &colorAttachment;
+    renderPassInfo.subpassCount           = 1;
+    renderPassInfo.pSubpasses             = &subpass;
+
+    if (vkCreateRenderPass(m_Device, &renderPassInfo, nullptr, &m_RenderPass) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to create render pass!");
+    }
+}
+
 void HelloTriangleApplication::CreateGraphicsPipeline()
 {
     auto VertexShaderCode   = Loader::ReadFile("../Shaders/vert.spv");
@@ -759,6 +812,123 @@ void HelloTriangleApplication::CreateGraphicsPipeline()
     fragShaderStageInfo.pName                           = "main";
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
+
+    //描述传递给顶点着色器的顶点数据格式
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
+    vertexInputInfo.sType                                = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInputInfo.vertexBindingDescriptionCount        = 0;
+    vertexInputInfo.pVertexBindingDescriptions           = nullptr; //绑定：数据之间的间距和数据是按逐顶点的方式还是按逐实例的方式进行组织
+    vertexInputInfo.vertexAttributeDescriptionCount      = 0;
+    vertexInputInfo.pVertexAttributeDescriptions         = nullptr; //属性描述：传递给顶点着色器的属性类型，用于将属性绑定到顶点着色器中的变量
+
+    //描述图元装配模式(topology) 和 是否启用几何图元重启
+    VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
+    inputAssembly.sType                                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAssembly.topology                               = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssembly.primitiveRestartEnable                 = VK_FALSE;
+
+    //描述视口和裁剪矩形
+    VkViewport viewport                             = {};
+    viewport.x                                      = 0.0f;
+    viewport.y                                      = 0.0f;
+    viewport.width                                  = static_cast<float>(m_SwapChainExtent.width);
+    viewport.height                                 = static_cast<float>(m_SwapChainExtent.height);
+    viewport.minDepth                               = 0.0f;
+    viewport.maxDepth                               = 1.0f;
+    VkRect2D scissor                                = {};
+    scissor.offset                                  = {0, 0};
+    scissor.extent                                  = m_SwapChainExtent;
+    VkPipelineViewportStateCreateInfo viewportState = {};
+    viewportState.sType                             = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportState.viewportCount                     = 1;
+    viewportState.pViewports                        = &viewport;
+    viewportState.scissorCount                      = 1;
+    viewportState.pScissors                         = &scissor;
+
+    //描述光栅化方式
+    VkPipelineRasterizationStateCreateInfo rasterizer = {};
+    rasterizer.sType                                  = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterizer.depthClampEnable                       = VK_FALSE;
+    //depthClampEnable成员变量设置为VK_TRUE表示在近平面和远平面外的片段会被截断为在近平面和远平面上，而不是直接丢弃这些片段。这对于阴影贴图的生成很有用。使用这一设置需要开启相应的GPU特性。
+    rasterizer.rasterizerDiscardEnable = VK_FALSE;
+    //rasterizerDiscardEnable成员变量设置为VK_TRUE表示所有几何图元都不能通过光栅化阶段。这一设置会禁止一切片段输出到帧缓冲。
+    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    //polygonMode成员变量用于指定多边形的填充模式。可以设置为VK_POLYGON_MODE_FILL填充模式，VK_POLYGON_MODE_LINE线框模式，VK_POLYGON_MODE_POINT点模式。
+    rasterizer.lineWidth = 1.0f; //lineWidth成员变量用于指定光栅化后的线段宽度。线宽的最大值依赖于硬件，如果线宽度大于1.0f，需要开启相应的GPU特性。
+    rasterizer.cullMode  = VK_CULL_MODE_BACK_BIT;
+    //cullMode成员变量用于指定剔除模式。可以设置为VK_CULL_MODE_NONE不剔除任何图元，VK_CULL_MODE_FRONT_BIT剔除正面图元，VK_CULL_MODE_BACK_BIT剔除背面图元，VK_CULL_MODE_FRONT_AND_BACK剔除所有图元。
+    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    //frontFace成员变量用于指定多边形的正面是顺时针还是逆时针。可以设置为VK_FRONT_FACE_CLOCKWISE顺时针，VK_FRONT_FACE_COUNTER_CLOCKWISE逆时针。
+    rasterizer.depthBiasEnable = VK_FALSE;
+    //depthBiasEnable成员变量用于指定是否开启深度偏移。光栅化程序可以添加一个常量值或是一个基于片段所处线段的斜率得到的变量值到深度值上。这对于阴影贴图会很有用
+
+    //多重采样技术 用于反走样，这里暂时禁用。
+    VkPipelineMultisampleStateCreateInfo multisampling = {};
+    multisampling.sType                                = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampling.sampleShadingEnable                  = VK_FALSE;
+    multisampling.rasterizationSamples                 = VK_SAMPLE_COUNT_1_BIT;
+    multisampling.minSampleShading                     = 1.0f;     // Optional
+    multisampling.pSampleMask                          = nullptr;  // Optional
+    multisampling.alphaToCoverageEnable                = VK_FALSE; // Optional
+    multisampling.alphaToOneEnable                     = VK_FALSE; // Optional
+
+    //颜色混合：有两个用于配置颜色混合的结构体。第一个是VkPipelineColorBlendAttachmentState结构体，可以用它来对每个绑定的帧缓冲进行单独的颜色混合配置。
+    //第二个是VkPipelineColorBlendStateCreateInfo结构体，可以用它来进行全局的颜色混合配置。
+    VkPipelineColorBlendAttachmentState colorBlendAttachment = {}; //不配置
+    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT
+            | VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachment.blendEnable         = VK_FALSE;
+    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;  // Optional
+    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
+    colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;      // Optional
+    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;  // Optional
+    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
+    colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;      // Optional
+    /* 上方设置的作用
+    if (blendEnable)
+    {
+        finalColor.rgb = (srcColorBlendFactor * newColor.rgb) <colorBlendOp> (dstColorBlendFactor * oldColor.rgb);
+        finalColor.a = (srcAlphaBlendFactor * newColor.a) <alphaBlendOp> (dstAlphaBlendFactor * oldColor.a);
+    }
+    else {
+        finalColor = newColor;
+    }
+    finalColor = finalColor & colorWriteMask;
+    */
+    VkPipelineColorBlendStateCreateInfo colorBlending = {};
+    colorBlending.sType                               = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorBlending.logicOpEnable                       = VK_FALSE;
+    colorBlending.logicOp                             = VK_LOGIC_OP_COPY; // Optional
+    colorBlending.attachmentCount                     = 1;
+    colorBlending.pAttachments                        = &colorBlendAttachment;
+    colorBlending.blendConstants[0]                   = 0.0f; // Optional
+    colorBlending.blendConstants[1]                   = 0.0f; // Optional
+    colorBlending.blendConstants[2]                   = 0.0f; // Optional
+    colorBlending.blendConstants[3]                   = 0.0f; // Optional
+
+    VkDynamicState dynamicStates[] = {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_LINE_WIDTH
+    };
+
+    //声明可以动态配置的内容
+    VkPipelineDynamicStateCreateInfo dynamicState = {};
+    dynamicState.sType                            = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicState.dynamicStateCount                = 2;
+    dynamicState.pDynamicStates                   = dynamicStates;
+
+    //Uniform变量通过m_PipelineLayout在管线中提前定义
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
+    pipelineLayoutInfo.sType                      = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount             = 0;       // Optional
+    pipelineLayoutInfo.pSetLayouts                = nullptr; // Optional
+    pipelineLayoutInfo.pushConstantRangeCount     = 0;       // Optional
+    pipelineLayoutInfo.pPushConstantRanges        = nullptr; // Optional
+
+    if (vkCreatePipelineLayout(m_Device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to create pipeline layout!");
+    }
 }
 
 VkShaderModule HelloTriangleApplication::CreateShaderModule(const std::vector<char>& code)
